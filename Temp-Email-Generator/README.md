@@ -4,7 +4,7 @@ Full-stack temporary email app with:
 - **Backend**: Node.js + Express (`/backend`)
 - **Frontend**: Next.js (`/frontend`)
 
-It uses the free public 1secmail API (no auth required).
+It uses the free public mail.tm API (no auth required).
 
 ## Project Structure
 
@@ -57,7 +57,7 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:5000
 
 ## Free API Notes
 
-- This app uses `https://www.1secmail.com/api/v1/` (public, no auth).
+- This app uses `https://api.mail.tm` (public, no auth).
 - Generated inboxes are disposable and controlled by the external provider.
 - Message retention and inbox lifetime are managed by the provider, not this app.
 
