@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 
 const apiBaseUrl =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+const asArray = (value) => (Array.isArray(value) ? value : []);
 
 export default function DashboardPage() {
   const [mailbox, setMailbox] = useState(null);
@@ -58,7 +59,7 @@ export default function DashboardPage() {
       if (!response.ok) throw new Error("Unable to load inbox.");
 
       const data = await response.json();
-      setMessages(Array.isArray(data) ? data : []);
+      setMessages(asArray(data));
     } catch (_err) {
       setMessages([]);
       setError("Could not load inbox messages.");
@@ -189,4 +190,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

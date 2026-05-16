@@ -105,14 +105,6 @@ app.get("/api/message", async (req, res) => {
   }
 });
 
-app.use((error, _req, res, _next) => {
-  res.status(500).json({
-    error: "Unexpected server error.",
-    details: error.message,
-  });
-});
-
 app.listen(port, () => {
   console.log(`Temp email backend listening on http://localhost:${port}`);
 });
-
