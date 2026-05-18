@@ -17,16 +17,14 @@ export default function Home() {
               messages live. Great for sign-up tests, QA flows, and quick
               verification.
             </p>
+            <p className="text-sm text-cyan-100/70">
+              Temporary inboxes expire after about 1 hour of inactivity. Save anything
+              important before it disappears.
+            </p>
             <div className="flex flex-wrap gap-4">
               <Link href="/dashboard" className="btn-primary">
                 Open Dashboard
               </Link>
-              <a
-                href="#features"
-                className="rounded-full border border-white/30 px-6 py-3 text-sm font-semibold text-cyan-100 transition hover:border-cyan-200 hover:text-white"
-              >
-                Explore Features
-              </a>
             </div>
           </div>
           <div className="rounded-3xl border border-white/20 bg-white/10 p-6 shadow-2xl backdrop-blur-md">
@@ -34,14 +32,14 @@ export default function Home() {
               Sample inbox
             </p>
             <p className="mb-4 rounded-lg border border-white/20 bg-slate-950/40 p-3 text-sm">
-              yourname@1secmail.com
+              user12345@guerrillamail.com
             </p>
             <ul className="space-y-3 text-sm text-cyan-100/85">
               <li className="rounded-lg border border-white/15 bg-white/5 p-3">
                 Verify your account — 2 min ago
               </li>
               <li className="rounded-lg border border-white/15 bg-white/5 p-3">
-                Welcome to your test workspace — 7 min ago
+                Welcome to Guerrilla Mail — 7 min ago
               </li>
             </ul>
           </div>

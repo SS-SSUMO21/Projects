@@ -12,11 +12,21 @@
   --font-mono: "Courier New", monospace;
 }
 
+html,
+body {
+  min-height: 100%;
+}
+
+html {
+  background-color: var(--background);
+}
+
 body {
   background:
     radial-gradient(circle at top right, #0ea5e980, transparent 36%),
     radial-gradient(circle at bottom left, #7c3aed60, transparent 34%),
     var(--background);
+  background-attachment: fixed;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }

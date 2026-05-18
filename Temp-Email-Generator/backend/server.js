@@ -6,7 +6,9 @@ require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 5000;
 const apiBaseUrl =
-  process.env.TEMP_EMAIL_API_BASE || "https://api.mail.tm";
+  process.env.TEMP_EMAIL_API_BASE || "https://api.guerrillamail.com/ajax.php";
+const resendApiKey = process.env.RESEND_API_KEY?.trim();
+const resendFrom = process.env.RESEND_FROM?.trim();
 
 app.use(
   cors({
@@ -27,88 +29,80 @@ app.get("/", (_req, res) => {
 
 const mailboxStore = new Map();
 
-const requestMailTm = async (path, { method = "GET", token, body } = {}) => {
-  const url = new URL(path, apiBaseUrl);
-  const headers = { Accept: "application/json" };
-  if (body) headers["Content-Type"] = "application/json";
-  if (token) headers.Authorization = `Bearer ${token}`;
-
-  const response = await fetch(url, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
+const requestGuerrillaMail = async (params) => {
+  const url = new URL(apiBaseUrl);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      url.searchParams.set(key, String(value));
+    }
   });
+
+  const response = await fetch(url, { method: "GET" });
 
   if (!response.ok) {
     const details = await response.text();
     throw new Error(
-      `Mail.tm API error: ${response.status} ${details || ""}`.trim()
+      `GuerrillaMail API error: ${response.status} ${details || ""}`.trim()
     );
   }
 
   return response.json();
 };
 
-const getDomain = async () => {
-  const preferredDomain = process.env.TEMP_EMAIL_DOMAIN?.trim();
-  if (preferredDomain) {
-    return preferredDomain;
-  }
-
-  const data = await requestMailTm("/domains");
-  const members =
-    (Array.isArray(data["hydra:member"]) && data["hydra:member"]) ||
-    (Array.isArray(data.member) && data.member) ||
-    [];
-  const domain = members[0]?.domain;
-  if (!domain) {
-    const payload = JSON.stringify(data);
-    throw new Error(`No mail.tm domains available. Response: ${payload}`);
-  }
-
-  return domain;
-};
-
 const createMailbox = async () => {
-  const domain = await getDomain();
+  const data = await requestGuerrillaMail({ f: "get_email_address" });
+  const email = data?.email_addr;
+  const sidToken = data?.sid_token;
 
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const login = `user${crypto.randomBytes(6).toString("hex")}`;
-    const address = `${login}@${domain}`;
-    const password = crypto.randomBytes(12).toString("hex");
-
-    try {
-      const account = await requestMailTm("/accounts", {
-        method: "POST",
-        body: { address, password },
-      });
-      const tokenData = await requestMailTm("/token", {
-        method: "POST",
-        body: { address, password },
-      });
-
-      if (!tokenData?.token) {
-        throw new Error("Missing auth token for mailbox.");
-      }
-
-      mailboxStore.set(address, {
-        token: tokenData.token,
-        accountId: account?.id,
-        createdAt: new Date().toISOString(),
-      });
-
-      return { email: address, login, domain };
-    } catch (error) {
-      if (attempt === 2) throw error;
-    }
+  if (!email || !sidToken) {
+    const payload = JSON.stringify(data);
+    throw new Error(`Unable to generate temporary email. Response: ${payload}`);
   }
 
-  throw new Error("Unable to generate temporary email.");
+  const [login, domain] = email.split("@");
+  mailboxStore.set(email, {
+    token: sidToken,
+    createdAt: new Date().toISOString(),
+  });
+
+  return { email, login, domain };
 };
 
 const getMailboxToken = (login, domain) => {
   const address = `${login}@${domain}`;
   return mailboxStore.get(address)?.token;
+};
+
+const sendTestEmail = async (to) => {
+  if (!resendApiKey) {
+    throw new Error("Missing RESEND_API_KEY.");
+  }
+  if (!resendFrom) {
+    throw new Error("Missing RESEND_FROM.");
+  }
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${resendApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: resendFrom,
+      to: [to],
+      subject: "Temp inbox test message",
+      text: "This is a test message from your Temp Email Generator.",
+    }),
+  });
+
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(
+      `Resend API error: ${response.status} ${details || ""}`.trim()
+    );
+  }
+
+  return response.json();
 };
 
 app.get("/api/new", async (_req, res) => {
@@ -133,6 +127,7 @@ app.get("/api/messages", async (req, res) => {
   }
 
   try {
+    console.log(`[messages] request login=${login} domain=${domain}`);
     const token = getMailboxToken(String(login), String(domain));
     if (!token) {
       return res.status(404).json({
@@ -140,22 +135,99 @@ app.get("/api/messages", async (req, res) => {
       });
     }
 
-    const data = await requestMailTm("/messages", { token });
-    const messages = Array.isArray(data["hydra:member"])
-      ? data["hydra:member"]
-      : [];
+    const data = await requestGuerrillaMail({
+      f: "get_email_list",
+      offset: 0,
+      sid_token: token,
+    });
+    const messages = Array.isArray(data?.list) ? data.list : [];
 
     const normalized = messages.map((message) => ({
-      id: message.id,
-      subject: message.subject || "",
-      from: message.from?.address || message.from?.name || "",
-      date: message.createdAt || "",
+      id: message.mail_id,
+      subject: message.mail_subject || "",
+      from: message.mail_from || "",
+      date: message.mail_date || "",
     }));
 
+    console.log(`[messages] fetched ${normalized.length} items`);
     return res.json(normalized);
   } catch (error) {
     return res.status(502).json({
       error: "Failed to fetch inbox messages.",
+      details: error.message,
+    });
+  }
+});
+
+app.get("/api/diagnostic", async (req, res) => {
+  const { login, domain } = req.query;
+
+  if (!login || !domain) {
+    return res.status(400).json({
+      error: "login and domain query params are required.",
+    });
+  }
+
+  const token = getMailboxToken(String(login), String(domain));
+  if (!token) {
+    return res.status(404).json({
+      error: "Mailbox token not found. Generate a new email first.",
+      apiBaseUrl,
+      tokenPresent: false,
+    });
+  }
+
+  try {
+    const data = await requestGuerrillaMail({
+      f: "get_email_list",
+      offset: 0,
+      sid_token: token,
+    });
+    const messages = Array.isArray(data?.list) ? data.list : [];
+
+    return res.json({
+      apiBaseUrl,
+      tokenPresent: true,
+      messageCount: messages.length,
+    });
+  } catch (error) {
+    return res.status(502).json({
+      error: "Diagnostic check failed.",
+      details: error.message,
+      apiBaseUrl,
+      tokenPresent: true,
+    });
+  }
+});
+
+app.post("/api/send-test", async (req, res) => {
+  const { login, domain } = req.body || {};
+
+  if (!login || !domain) {
+    return res.status(400).json({
+      error: "login and domain are required in request body.",
+    });
+  }
+
+  const token = getMailboxToken(String(login), String(domain));
+  if (!token) {
+    return res.status(404).json({
+      error: "Mailbox token not found. Generate a new email first.",
+    });
+  }
+
+  const toAddress = `${login}@${domain}`;
+
+  try {
+    const data = await sendTestEmail(toAddress);
+    return res.json({
+      status: "sent",
+      to: toAddress,
+      providerResponse: data,
+    });
+  } catch (error) {
+    return res.status(502).json({
+      error: "Failed to send test email.",
       details: error.message,
     });
   }
@@ -178,17 +250,19 @@ app.get("/api/message", async (req, res) => {
       });
     }
 
-    const message = await requestMailTm(`/messages/${String(id)}`, { token });
-    const htmlBody = Array.isArray(message.html)
-      ? message.html.join("\n")
-      : message.html || "";
+    const message = await requestGuerrillaMail({
+      f: "fetch_email",
+      email_id: String(id),
+      sid_token: token,
+    });
+    const htmlBody = message?.mail_body_html || "";
 
     return res.json({
       id: message.id,
-      subject: message.subject || "",
-      from: message.from?.address || message.from?.name || "",
-      date: message.createdAt || "",
-      textBody: message.text || "",
+      subject: message?.mail_subject || "",
+      from: message?.mail_from || "",
+      date: message?.mail_date || "",
+      textBody: message?.mail_body || "",
       htmlBody,
     });
   } catch (error) {
@@ -201,4 +275,5 @@ app.get("/api/message", async (req, res) => {
 
 app.listen(port, () => {
   console.log(`Temp email backend listening on http://localhost:${port}`);
+  console.log(`Temp email API base: ${apiBaseUrl}`);
 });
