@@ -36,7 +36,7 @@ export default function NavMenu() {
             Home
           </Link>
           <Link href="/dashboard" onClick={() => setOpen(false)}>
-            Dashboard
+            Generate Email
           </Link>
         </nav>
       </div>

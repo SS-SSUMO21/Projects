@@ -23,7 +23,7 @@ export default function Home() {
             </p>
             <div className="flex flex-wrap gap-4">
               <Link href="/dashboard" className="btn-primary">
-                Open Dashboard
+                Create Your Free Email
               </Link>
             </div>
           </div>
