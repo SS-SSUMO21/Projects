@@ -127,19 +127,16 @@ body {
   background: var(--card);
 }
 
-.theme-toggle-shell {
-  position: fixed;
-  top: max(1.5rem, env(safe-area-inset-top));
-  right: max(0.75rem, env(safe-area-inset-right));
-  left: auto;
-  z-index: 30;
+.theme-toggle-bar {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  padding: max(0.75rem, env(safe-area-inset-top)) max(0.75rem, env(safe-area-inset-right)) 0;
 }
 
 @media (min-width: 640px) {
-  .theme-toggle-shell {
-    top: max(1.5rem, env(safe-area-inset-top));
-    right: max(2rem, env(safe-area-inset-right));
-    left: auto;
+  .theme-toggle-bar {
+    padding: max(1.5rem, env(safe-area-inset-top)) max(2rem, env(safe-area-inset-right)) 0;
   }
 }
 

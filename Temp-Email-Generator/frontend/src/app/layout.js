@@ -10,7 +10,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
-        <div className="theme-toggle-shell">
+        <div className="theme-toggle-bar">
           <ThemeToggle />
         </div>
         {children}
