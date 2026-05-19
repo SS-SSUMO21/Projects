@@ -1,8 +1,43 @@
 @import "tailwindcss";
 
 :root {
-  --background: #090d1f;
+  --background: #0b1124;
   --foreground: #f7fbff;
+  --glow-1: rgba(56, 189, 248, 0.45);
+  --glow-2: rgba(99, 102, 241, 0.35);
+  --accent: #38bdf8;
+  --accent-muted: rgba(56, 189, 248, 0.7);
+  --muted: rgba(247, 251, 255, 0.75);
+  --muted-strong: rgba(247, 251, 255, 0.9);
+  --surface: rgba(15, 23, 42, 0.55);
+  --surface-border: rgba(255, 255, 255, 0.24);
+  --card: rgba(255, 255, 255, 0.12);
+  --card-border: rgba(255, 255, 255, 0.22);
+  --panel-shadow: rgba(6, 11, 25, 0.35);
+  --toggle-track: rgba(15, 23, 42, 0.75);
+  --toggle-thumb: #f8fafc;
+  --toggle-icon: rgba(248, 250, 252, 0.9);
+  --toggle-glow: rgba(56, 189, 248, 0.45);
+}
+
+[data-theme="light"] {
+  --background: #eef2ff;
+  --foreground: #10172a;
+  --glow-1: rgba(14, 165, 233, 0.2);
+  --glow-2: rgba(165, 180, 252, 0.25);
+  --accent: #0ea5e9;
+  --accent-muted: rgba(14, 165, 233, 0.7);
+  --muted: rgba(15, 23, 42, 0.72);
+  --muted-strong: rgba(15, 23, 42, 0.92);
+  --surface: rgba(255, 255, 255, 0.92);
+  --surface-border: rgba(15, 23, 42, 0.14);
+  --card: rgba(255, 255, 255, 0.86);
+  --card-border: rgba(15, 23, 42, 0.12);
+  --panel-shadow: rgba(30, 41, 59, 0.14);
+  --toggle-track: rgba(226, 232, 240, 0.95);
+  --toggle-thumb: #0f172a;
+  --toggle-icon: rgba(15, 23, 42, 0.75);
+  --toggle-glow: rgba(14, 165, 233, 0.35);
 }
 
 @theme inline {
@@ -23,8 +58,8 @@ html {
 
 body {
   background:
-    radial-gradient(circle at top right, #0ea5e980, transparent 36%),
-    radial-gradient(circle at bottom left, #7c3aed60, transparent 34%),
+    radial-gradient(circle at top right, var(--glow-1), transparent 36%),
+    radial-gradient(circle at bottom left, var(--glow-2), transparent 34%),
     var(--background);
   background-attachment: fixed;
   color: var(--foreground);
@@ -33,10 +68,10 @@ body {
 
 .glass-panel {
   border-radius: 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--surface-border);
+  background: color-mix(in srgb, var(--surface) 75%, transparent);
   backdrop-filter: blur(16px);
-  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 20px 45px var(--panel-shadow);
 }
 
 .btn-primary {
@@ -51,4 +86,105 @@ body {
 
 .btn-primary:hover {
   filter: brightness(1.08);
+}
+
+.btn-outline {
+  border: 1px solid var(--surface-border);
+  color: var(--muted-strong);
+  background: transparent;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+}
+
+.btn-outline:hover {
+  border-color: var(--accent);
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.text-accent {
+  color: var(--accent);
+}
+
+.text-accent-muted {
+  color: var(--accent-muted);
+}
+
+.text-muted {
+  color: var(--muted);
+}
+
+.text-muted-strong {
+  color: var(--muted-strong);
+}
+
+.surface-panel {
+  border: 1px solid var(--surface-border);
+  background: var(--surface);
+}
+
+.surface-card {
+  border: 1px solid var(--card-border);
+  background: var(--card);
+}
+
+.theme-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 74px;
+  height: 36px;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid var(--surface-border);
+  background: linear-gradient(120deg, var(--toggle-track), color-mix(in srgb, var(--toggle-track) 65%, transparent));
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--toggle-glow) 30%, transparent);
+  transition: border-color 180ms ease, box-shadow 200ms ease, transform 200ms ease;
+}
+
+.theme-toggle:hover {
+  border-color: var(--accent);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--toggle-glow) 50%, transparent);
+  transform: translateY(-1px);
+}
+
+.theme-toggle:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.theme-toggle-icons {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 7px;
+  color: var(--toggle-icon);
+}
+
+.theme-toggle-icon {
+  width: 16px;
+  height: 16px;
+  opacity: 0.85;
+}
+
+.theme-toggle-thumb {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--toggle-thumb);
+  box-shadow: 0 6px 16px rgba(2, 6, 23, 0.25);
+  transition: transform 260ms ease, background 200ms ease, box-shadow 200ms ease;
+}
+
+[data-theme="light"] .theme-toggle-thumb {
+  transform: translateX(36px);
+}
+
+[data-theme="light"] .theme-toggle-icon {
+  opacity: 0.7;
 }

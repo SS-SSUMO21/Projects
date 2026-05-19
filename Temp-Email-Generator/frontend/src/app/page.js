@@ -6,18 +6,18 @@ export default function Home() {
       <main className="glass-panel max-w-5xl px-6 py-12 sm:px-12">
         <section className="grid gap-10 md:grid-cols-2 md:items-center">
           <div className="space-y-6">
-            <p className="text-sm uppercase tracking-[0.2em] text-cyan-200">
+            <p className="text-sm uppercase tracking-[0.2em] text-accent">
               Developer Tools • Free
             </p>
             <h1 className="text-4xl font-bold leading-tight sm:text-5xl">
               Instant Temporary Email Inbox for Fast Testing
             </h1>
-            <p className="text-cyan-100/85">
+            <p className="text-muted-strong">
               Generate disposable mailboxes in one click and monitor incoming
               messages live. Great for sign-up tests, QA flows, and quick
               verification.
             </p>
-            <p className="text-sm text-cyan-100/70">
+            <p className="text-sm text-muted">
               Temporary inboxes expire after about 1 hour of inactivity. Save anything
               important before it disappears.
             </p>
@@ -27,18 +27,18 @@ export default function Home() {
               </Link>
             </div>
           </div>
-          <div className="rounded-3xl border border-white/20 bg-white/10 p-6 shadow-2xl backdrop-blur-md">
-            <p className="mb-3 text-xs uppercase tracking-[0.2em] text-cyan-200">
+          <div className="rounded-3xl p-6 shadow-2xl backdrop-blur-md surface-panel">
+            <p className="mb-3 text-xs uppercase tracking-[0.2em] text-accent">
               Sample inbox
             </p>
-            <p className="mb-4 rounded-lg border border-white/20 bg-slate-950/40 p-3 text-sm">
+            <p className="mb-4 rounded-lg p-3 text-sm surface-panel">
               user12345@guerrillamail.com
             </p>
-            <ul className="space-y-3 text-sm text-cyan-100/85">
-              <li className="rounded-lg border border-white/15 bg-white/5 p-3">
+            <ul className="space-y-3 text-sm text-muted-strong">
+              <li className="rounded-lg p-3 surface-card">
                 Verify your account — 2 min ago
               </li>
-              <li className="rounded-lg border border-white/15 bg-white/5 p-3">
+              <li className="rounded-lg p-3 surface-card">
                 Welcome to Guerrilla Mail — 7 min ago
               </li>
             </ul>
@@ -53,7 +53,7 @@ export default function Home() {
           ].map((item) => (
             <article
               key={item}
-              className="rounded-2xl border border-white/20 bg-white/10 p-5 text-sm text-cyan-100/90 backdrop-blur"
+              className="rounded-2xl p-5 text-sm text-muted-strong backdrop-blur surface-card"
             >
               {item}
             </article>

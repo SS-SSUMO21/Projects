@@ -1,11 +1,36 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const apiBaseUrl =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
 const asArray = (value) => (Array.isArray(value) ? value : []);
+const STORAGE_KEY = "temp-email-dashboard-state";
+const LOCAL_MESSAGE_ID = "local-welcome";
+
+const createLocalWelcomeMessage = (email) => ({
+  id: LOCAL_MESSAGE_ID,
+  subject: "Welcome to your temporary inbox",
+  from: "Temp Email Team",
+  date: new Date().toISOString(),
+  isLocal: true,
+  textBody: `Dear Valued User,\n\nThank you for using Temp Email Generator, your temporary email address friend and spam fighter's ally.\n\nYour disposable email address has been created and is ready for use.\n\nEmail: ${email || ""}\n\nTips & Notes:\n\n- Waiting for your mail? There is no need to refresh the page. New emails will be added to the list as they come in.\n\n- All emails are deleted after 1 hour.\n\nThanks,\n\nTemp Email Team`.trim(),
+});
+
+const isGuerrillaWelcome = (message) => {
+  const subject = String(message?.subject || "").toLowerCase();
+  const from = String(message?.from || "").toLowerCase();
+  return subject.includes("welcome to guerrilla mail") ||
+    from.includes("guerrillamail.com");
+};
+
+const ensureLocalWelcome = (messages, email) => {
+  if (!email) return messages;
+  const hasLocal = messages.some((message) => message.isLocal);
+  if (hasLocal) return messages;
+  return [createLocalWelcomeMessage(email), ...messages];
+};
 
 export default function DashboardPage() {
   const [mailbox, setMailbox] = useState(null);
@@ -17,6 +42,7 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
   const [lastRefreshAt, setLastRefreshAt] = useState(null);
   const [copyStatus, setCopyStatus] = useState("");
+  const hasHydratedRef = useRef(false);
 
   const hasMailbox = Boolean(mailbox?.login && mailbox?.domain);
 
@@ -36,8 +62,9 @@ export default function DashboardPage() {
       if (!response.ok) throw new Error("Unable to generate temporary email.");
 
       const data = await response.json();
+      const welcomeMessage = createLocalWelcomeMessage(data?.email);
       setMailbox(data);
-      setMessages([]);
+      setMessages([welcomeMessage]);
     } catch (_err) {
       setMailbox(null);
       setMessages([]);
@@ -66,7 +93,16 @@ export default function DashboardPage() {
       if (!response.ok) throw new Error("Unable to load inbox.");
 
       const data = await response.json();
-      setMessages(asArray(data));
+      const apiMessages = asArray(data).filter(
+        (message) => !isGuerrillaWelcome(message)
+      );
+      setMessages((prev) => {
+        const baseMessages = ensureLocalWelcome(prev.filter((message) => message.isLocal), mailbox?.email);
+        const dedupedApi = apiMessages.filter(
+          (message) => !baseMessages.some((local) => local.id === message.id)
+        );
+        return [...baseMessages, ...dedupedApi];
+      });
       setLastRefreshAt(new Date());
     } catch (_err) {
       setMessages([]);
@@ -79,6 +115,18 @@ export default function DashboardPage() {
 
   const openMessage = async (id) => {
     if (!hasMailbox) return;
+    const localMessage = messages.find((message) => message.id === id && message.isLocal);
+    if (localMessage) {
+      setSelectedMessage({
+        id: localMessage.id,
+        subject: localMessage.subject,
+        from: localMessage.from,
+        date: localMessage.date,
+        textBody: localMessage.textBody,
+        htmlBody: "",
+      });
+      return;
+    }
     setLoading(true);
     setError("");
     setCopyStatus("");
@@ -106,7 +154,49 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setIsMounted(true);
+
+    if (typeof window === "undefined") return;
+
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (!stored) {
+      hasHydratedRef.current = true;
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(stored);
+      if (parsed?.mailbox) setMailbox(parsed.mailbox);
+      if (Array.isArray(parsed?.messages)) {
+        const nextMessages = ensureLocalWelcome(
+          parsed.messages,
+          parsed?.mailbox?.email
+        );
+        setMessages(nextMessages);
+      }
+      if (parsed?.selectedMessage) setSelectedMessage(parsed.selectedMessage);
+      if (parsed?.lastRefreshAt) {
+        const parsedDate = new Date(parsed.lastRefreshAt);
+        if (!Number.isNaN(parsedDate.getTime())) {
+          setLastRefreshAt(parsedDate);
+        }
+      }
+    } catch (_err) {
+      // Ignore invalid cached state.
+    }
+
+    hasHydratedRef.current = true;
   }, []);
+
+  useEffect(() => {
+    if (!hasHydratedRef.current || typeof window === "undefined") return;
+    const payload = {
+      mailbox,
+      messages,
+      selectedMessage,
+      lastRefreshAt: lastRefreshAt?.toISOString?.() || null,
+    };
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  }, [lastRefreshAt, mailbox, messages, selectedMessage]);
 
   useEffect(() => {
     if (!hasMailbox) return undefined;
@@ -137,46 +227,56 @@ export default function DashboardPage() {
 
   const canRefresh = isMounted && hasMailbox && !loading;
 
-  function formatTime(value) {
-    if (!value) return "";
-    const timeOnlyMatch = String(value).trim().match(/^(\d{2}):(\d{2}):(\d{2})$/);
-    if (timeOnlyMatch) {
-      const [, hoursRaw, minutesRaw, secondsRaw] = timeOnlyMatch;
-      const hours = Number(hoursRaw);
-      const minutes = Number(minutesRaw);
-      const seconds = Number(secondsRaw);
-      if ([hours, minutes, seconds].every((part) => Number.isFinite(part))) {
-        const period = hours >= 12 ? "PM" : "AM";
-        const normalizedHours = ((hours + 11) % 12) + 1;
-        return `${normalizedHours}:${String(minutes).padStart(2, "0")} ${period}`;
-      }
+  function parseApiDate(value) {
+    if (!value) return null;
+    const trimmed = String(value).trim();
+
+    const dateTimeMatch = trimmed.match(
+      /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/
+    );
+    if (dateTimeMatch) {
+      const iso = `${dateTimeMatch[1]}-${dateTimeMatch[2]}-${dateTimeMatch[3]}T${dateTimeMatch[4]}:${dateTimeMatch[5]}:${dateTimeMatch[6]}Z`;
+      const parsed = new Date(iso);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
     }
 
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return value;
-    return new Intl.DateTimeFormat("en-CA", {
+    const timeOnlyMatch = trimmed.match(/^(\d{2}):(\d{2}):(\d{2})$/);
+    if (timeOnlyMatch) {
+      const todayIso = new Date().toISOString().slice(0, 10);
+      const iso = `${todayIso}T${timeOnlyMatch[1]}:${timeOnlyMatch[2]}:${timeOnlyMatch[3]}Z`;
+      const parsed = new Date(iso);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    const parsed = new Date(trimmed);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  function formatTime(value) {
+    if (!value) return "";
+    const parsed = parseApiDate(value);
+    if (!parsed) return String(value);
+    return new Intl.DateTimeFormat("en-US", {
       timeZone: "America/Toronto",
       hour: "numeric",
       minute: "2-digit",
-      second: "2-digit",
       hour12: true,
-    }).format(parsed);
+    })
+      .format(parsed)
+      .replace(/\./g, "");
   }
 
   function formatDate(value) {
     if (!value) return "";
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return value;
-    return new Intl.DateTimeFormat("en-CA", {
+    const parsed = parseApiDate(value);
+    if (!parsed) return value;
+    const datePart = new Intl.DateTimeFormat("en-CA", {
       timeZone: "America/Toronto",
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
-      hour: "numeric",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: true,
     }).format(parsed);
+    return `${datePart} ${formatTime(parsed)}`.trim();
   }
 
   const copyMailbox = async () => {
@@ -234,22 +334,22 @@ export default function DashboardPage() {
     <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-6 py-10 sm:px-10">
       <header className="glass-panel flex flex-wrap items-center justify-between gap-4 p-6">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-cyan-200">
+          <p className="text-xs uppercase tracking-[0.2em] text-accent">
             Temp Email Generator
           </p>
           <h1 className="text-2xl font-bold">Dashboard</h1>
         </div>
-        <Link href="/" className="text-sm text-cyan-200 hover:text-white">
+        <Link href="/" className="text-sm text-accent hover:opacity-80">
           ← Back to Landing
         </Link>
       </header>
 
       <section className="glass-panel p-6">
-        <p className="mb-2 text-sm text-cyan-100/80">Current mailbox</p>
-        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-white/20 bg-slate-950/40 p-3 text-sm">
+        <p className="mb-2 text-sm text-muted">Current mailbox</p>
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg p-3 text-sm surface-panel">
           <span className="break-all">{mailboxLabel}</span>
           <button
-            className="rounded-full border border-white/30 px-3 py-1 text-xs font-semibold text-cyan-100 transition hover:border-cyan-200 hover:text-white disabled:opacity-50"
+            className="btn-outline rounded-full px-3 py-1 text-xs font-semibold transition disabled:opacity-50"
             onClick={copyMailbox}
             disabled={!mailbox?.email}
             aria-label="Copy email address"
@@ -283,7 +383,7 @@ export default function DashboardPage() {
             {loading ? "Working..." : "Generate New Email"}
           </button>
           <button
-            className="rounded-full border border-white/30 px-5 py-2 text-sm font-semibold text-cyan-100 transition hover:border-cyan-200 hover:text-white disabled:opacity-50"
+            className="btn-outline rounded-full px-5 py-2 text-sm font-semibold transition disabled:opacity-50"
             onClick={refreshInbox}
             disabled={!canRefresh}
           >
@@ -296,11 +396,11 @@ export default function DashboardPage() {
       <section className="grid gap-6 md:grid-cols-2">
         <div className="glass-panel p-6">
           <h2 className="mb-4 text-lg font-semibold">Inbox</h2>
-          <p className="mb-3 text-xs uppercase tracking-[0.2em] text-cyan-200/80">
+          <p className="mb-3 text-xs uppercase tracking-[0.2em] text-accent-muted">
             {inboxStatus}
           </p>
           {!messages.length ? (
-            <p className="text-sm text-cyan-100/80">
+            <p className="text-sm text-muted">
               Generate an email and send a message to it from another mailbox.
             </p>
           ) : (
@@ -308,18 +408,18 @@ export default function DashboardPage() {
               {messages.map((message) => (
                 <li key={message.id}>
                   <button
-                    className="w-full rounded-xl border border-white/20 bg-white/10 p-3 text-left text-sm hover:border-cyan-200"
+                    className="surface-card w-full rounded-xl p-3 text-left text-sm transition hover:opacity-90"
                     onClick={() => openMessage(message.id)}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="font-semibold">
                         {message.subject || "(No subject)"}
                       </p>
-                      <p className="text-xs text-cyan-100/70">
+                      <p className="text-xs text-muted">
                         {formatTime(message.date)}
                       </p>
                     </div>
-                    <p className="mt-1 text-cyan-100/75">
+                    <p className="mt-1 text-muted">
                       {message.from || "Unknown sender"}
                     </p>
                   </button>
@@ -332,7 +432,7 @@ export default function DashboardPage() {
         <div className="glass-panel p-6">
           <h2 className="mb-4 text-lg font-semibold">Message Viewer</h2>
           {!selectedMessage ? (
-            <p className="text-sm text-cyan-100/80">
+            <p className="text-sm text-muted">
               Select a message from inbox to view details.
             </p>
           ) : (
@@ -350,7 +450,7 @@ export default function DashboardPage() {
                 {formatDate(selectedMessage.date) || "-"}
               </p>
               <hr className="my-3 border-white/20" />
-              <div className="max-h-80 overflow-auto whitespace-pre-wrap rounded-lg border border-white/20 bg-slate-950/40 p-3 text-cyan-100/90">
+              <div className="surface-panel max-h-80 overflow-auto whitespace-pre-wrap rounded-lg p-3 text-muted-strong">
                 {messageBody || "Message body is empty."}
               </div>
             </article>
