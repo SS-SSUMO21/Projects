@@ -3,8 +3,18 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-const apiBaseUrl =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+const resolveApiBaseUrl = () => {
+  if (process.env.NEXT_PUBLIC_API_BASE_URL) {
+    return process.env.NEXT_PUBLIC_API_BASE_URL;
+  }
+  if (typeof window !== "undefined" && window.location.hostname === "localhost") {
+    return "http://localhost:5000";
+  }
+  return "/.netlify/functions";
+};
+
+const apiBaseUrl = resolveApiBaseUrl();
+const apiPrefix = apiBaseUrl.includes("/.netlify/functions") ? "" : "/api";
 const asArray = (value) => (Array.isArray(value) ? value : []);
 const STORAGE_KEY = "temp-email-dashboard-state";
 const LOCAL_MESSAGE_ID = "local-welcome";
@@ -44,7 +54,10 @@ export default function DashboardPage() {
   const [copyStatus, setCopyStatus] = useState("");
   const hasHydratedRef = useRef(false);
 
-  const hasMailbox = Boolean(mailbox?.login && mailbox?.domain);
+  const requiresToken = apiBaseUrl.includes("/.netlify/functions");
+  const hasMailbox = Boolean(
+    mailbox?.login && mailbox?.domain && (!requiresToken || mailbox?.token)
+  );
 
   const mailboxLabel = useMemo(() => {
     if (!mailbox?.email) return "No email generated yet.";
@@ -58,7 +71,7 @@ export default function DashboardPage() {
     setCopyStatus("");
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/new`);
+      const response = await fetch(`${apiBaseUrl}${apiPrefix}/new`);
       if (!response.ok) throw new Error("Unable to generate temporary email.");
 
       const data = await response.json();
@@ -86,9 +99,11 @@ export default function DashboardPage() {
     try {
       const { login, domain } = mailbox;
       const response = await fetch(
-        `${apiBaseUrl}/api/messages?login=${encodeURIComponent(
+        `${apiBaseUrl}${apiPrefix}/messages?login=${encodeURIComponent(
           login
-        )}&domain=${encodeURIComponent(domain)}`
+        )}&domain=${encodeURIComponent(domain)}&sid_token=${encodeURIComponent(
+          mailbox?.token || ""
+        )}`
       );
       if (!response.ok) throw new Error("Unable to load inbox.");
 
@@ -134,11 +149,11 @@ export default function DashboardPage() {
     try {
       const { login, domain } = mailbox;
       const response = await fetch(
-        `${apiBaseUrl}/api/message?id=${encodeURIComponent(
+        `${apiBaseUrl}${apiPrefix}/message?id=${encodeURIComponent(
           id
         )}&login=${encodeURIComponent(login)}&domain=${encodeURIComponent(
           domain
-        )}`
+        )}&sid_token=${encodeURIComponent(mailbox?.token || "")}`
       );
       if (!response.ok) throw new Error("Unable to load message.");
 

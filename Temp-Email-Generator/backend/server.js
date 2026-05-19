@@ -65,7 +65,7 @@ const createMailbox = async () => {
     createdAt: new Date().toISOString(),
   });
 
-  return { email, login, domain };
+  return { email, login, domain, token: sidToken };
 };
 
 const getMailboxToken = (login, domain) => {
