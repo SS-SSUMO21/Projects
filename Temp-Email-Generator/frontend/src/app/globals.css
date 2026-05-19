@@ -129,7 +129,7 @@ body {
 
 .theme-toggle-shell {
   position: fixed;
-  top: max(0.75rem, env(safe-area-inset-top));
+  top: max(1.5rem, env(safe-area-inset-top));
   right: max(0.75rem, env(safe-area-inset-right));
   left: auto;
   z-index: 30;
