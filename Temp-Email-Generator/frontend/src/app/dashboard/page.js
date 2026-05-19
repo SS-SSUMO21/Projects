@@ -21,11 +21,11 @@ const LOCAL_MESSAGE_ID = "local-welcome";
 
 const createLocalWelcomeMessage = (email) => ({
   id: LOCAL_MESSAGE_ID,
-  subject: "Welcome to your temporary inbox",
-  from: "Temp Email Team",
+  subject: "Welcome to your Blacksipher inbox",
+  from: "Blacksipher Team",
   date: new Date().toISOString(),
   isLocal: true,
-  textBody: `Dear Valued User,\n\nThank you for using Temp Email Generator, your temporary email address friend and spam fighter's ally.\n\nYour disposable email address has been created and is ready for use.\n\nEmail: ${email || ""}\n\nTips & Notes:\n\n- Waiting for your mail? There is no need to refresh the page. New emails will be added to the list as they come in.\n\n- All emails are deleted after 1 hour.\n\nThanks,\n\nTemp Email Team`.trim(),
+  textBody: `Dear Valued User,\n\nThank you for choosing Blacksipher, your temporary email address friend and spam fighter's ally.\n\nYour disposable email address has been created and is ready for use.\n\nEmail: ${email || ""}\n\nTips & Notes:\n\n- Waiting for your mail? There is no need to refresh the page. New emails will be added to the list as they come in.\n\n- All emails are deleted after 1 hour.\n\nThanks,\n\nBlacksipher Team`.trim(),
 });
 
 const isGuerrillaWelcome = (message) => {
@@ -354,9 +354,6 @@ export default function DashboardPage() {
           </p>
           <h1 className="text-2xl font-bold">Dashboard</h1>
         </div>
-        <Link href="/" className="text-sm text-accent hover:opacity-80">
-          ← Back to Landing
-        </Link>
       </header>
 
       <section className="glass-panel p-6">
