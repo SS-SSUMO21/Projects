@@ -127,6 +127,22 @@ body {
   background: var(--card);
 }
 
+.theme-toggle-shell {
+  position: fixed;
+  top: max(0.75rem, env(safe-area-inset-top));
+  right: max(0.75rem, env(safe-area-inset-right));
+  left: auto;
+  z-index: 30;
+}
+
+@media (min-width: 640px) {
+  .theme-toggle-shell {
+    top: max(1.5rem, env(safe-area-inset-top));
+    right: max(2rem, env(safe-area-inset-right));
+    left: auto;
+  }
+}
+
 .theme-toggle {
   position: relative;
   display: inline-flex;
