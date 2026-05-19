@@ -39,7 +39,7 @@ export default function Home() {
                 Verify your account — 2 min ago
               </li>
               <li className="rounded-lg p-3 surface-card">
-                Welcome to Guerrilla Mail — 7 min ago
+                Welcome to Blacksipher — 7 min ago
               </li>
             </ul>
           </div>

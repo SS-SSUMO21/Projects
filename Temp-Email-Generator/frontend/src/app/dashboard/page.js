@@ -37,9 +37,13 @@ const isGuerrillaWelcome = (message) => {
 
 const ensureLocalWelcome = (messages, email) => {
   if (!email) return messages;
-  const hasLocal = messages.some((message) => message.isLocal);
-  if (hasLocal) return messages;
-  return [createLocalWelcomeMessage(email), ...messages];
+  const updated = messages.map((message) => {
+    if (!message.isLocal) return message;
+    return createLocalWelcomeMessage(email);
+  });
+  const hasLocal = updated.some((message) => message.isLocal);
+  if (hasLocal) return updated;
+  return [createLocalWelcomeMessage(email), ...updated];
 };
 
 export default function DashboardPage() {
